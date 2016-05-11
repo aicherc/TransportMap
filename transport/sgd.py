@@ -34,7 +34,7 @@ class Options(object):
         for key, value in kwargs.iteritems():
             if key in options.keys():
                 options[key] = value
-            else
+            else:
                 print "Ignoring unrecognized kwarg: %s" % key
 
         self.T = options["T"]
@@ -47,11 +47,11 @@ class Options(object):
         self._check_options()
         return
 
-    def _check_options(self)
+    def _check_options(self):
         if type(self.T) is not int:
             raise TypeError("T must be an int")
         if self.T <= 0:
-            raise ValueError("T must be positive"):
+            raise ValueError("T must be positive")
         if type(self.batch_size) is not int:
             raise TypeError("batch_size must be an int")
         if self.batch_size <= 0:
@@ -71,28 +71,31 @@ def sgd(f, x_0, options):
       options (Options) - other options (see Options)
     Returns:
       x_star (N ndarray) - final solution
-      x_s (N by T ndarray) - list of solution points
-      f_s (N by T ndarray) - list of (noisy) objective values
+      x_s (T by N ndarray) - list of solution points
+      f_s (T ndarray) - list of (noisy) objective values
     """
+    N = np.size(x_0)
+    x_s = np.zeros((options.T, N))
+    f_s = np.zeros((options.T))
 
     # Initialize x and stepsize
     x = x_0
     eta = options.eta_0
 
     # Main Loop
-    for t in xrange(0, option.T):
+    for t in xrange(0, options.T):
         # Calculate Gradient
         fx, gx = f.oracle(x, options.batch_size)
 
         # Update stepsize
-        if options.stepsize_update = "fixed":
+        if options.stepsize_update == "fixed":
             eta = options.eta_0
-        elif options.stepsize_update = "decay":
+        elif options.stepsize_update == "decay":
             eta = options.eta_0 / (1.0 + options.eta_0 * f.lambduh * t)
-        elif options.stepsize_update = "ada":
+        elif options.stepsize_update == "ada":
             options.G += (gx ** 2)
             eta = options.eta_0 / np.sqrt(options.G)
-        else
+        else:
             raise ValueError("Unrecognized stepsize update")
 
         # Update x
@@ -103,8 +106,9 @@ def sgd(f, x_0, options):
         f_s[t] = fx
 
     # Calculate final solution
-    x_star = np.mean(x[np.ceil(options.alpha * options.T):,], axis=0)
-    return x_star
+    T_frac = int(options.alpha * options.T)
+    x_star = np.mean(x_s[T_frac:,], axis=0)
+    return x_star, x_s, f_s
 
 
 # Code To Execute
