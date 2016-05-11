@@ -1,0 +1,16 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+dependencies:
+- openssl
+- pip
+- python=2.7.11
+- readline
+- setuptools
+- sqlite
+- tk
+- wheel
+- zlib
+- numpy
+- pandas
+- nose
+- ipython
