@@ -60,8 +60,10 @@ class TransportMap(object):
             raise ValueError("n must be less than self.N")
         return
 
-    def mapping(self, n=None):
+    def mapping(self, n=None, z=None):
         """ Return the n-th element of T for the fitted sample """
+        if z is not None:
+            self.fit_sample(z)
         if n is None:
             return np.array([self.mapping(n) for n in xrange(0, self.N)])
         T_n = 0.0
@@ -72,8 +74,10 @@ class TransportMap(object):
             T_n += prod
         return T_n
 
-    def jacobian(self, n=None):
+    def jacobian(self, n=None, z=None):
         """ Return the n-th element of dT/dx_n for the fitted sample """
+        if z is not None:
+            self.fit_sample(z)
         if n is None:
             return np.array([self.jacobian(n) for n in xrange(0, self.N)])
         dT_n = 0.0
@@ -85,8 +89,10 @@ class TransportMap(object):
             dT_n += prod
         return dT_n
 
-    def grad_mapping(self, n):
+    def grad_mapping(self, n, z=None):
         """ Return the gradient of n-th element of T for the fitted sample """
+        if z is not None:
+            self.fit_sample(z)
         grad_T_n = np.zeros(len(self.gammas[n]))
         for i, index in enumerate(self.J_s[n]):
             prod = 1.0
@@ -96,8 +102,10 @@ class TransportMap(object):
         return grad_T_n
 
 
-    def grad_jacobian(self, n):
+    def grad_jacobian(self, n, z=None):
         """ Return the gradient of n-th element of T for the fitted sample """
+        if z is not None:
+            self.fit_sample(z)
         grad_dT_n = np.zeros(len(self.gammas[n]))
         for i, index in enumerate(self.J_s[n]):
             prod = self.dH_z[n, index[n]]
@@ -120,6 +128,15 @@ class TransportMap(object):
         for n in xrange(0, self.N):
             self.gammas[n] = np.random.randn(len(self.gammas[n]))
         return
+
+    def sample(self, number_samples):
+        """ Return samples from the transport density """
+        samples = np.zeros((number_samples, self.N))
+        for i in xrange(0, number_samples):
+            z = np.random.randn(self.N)
+            samples[i,:] = self.mapping(z=z)
+
+        return samples
 
 
 
