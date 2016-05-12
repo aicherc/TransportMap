@@ -16,6 +16,7 @@ class TransportMap(object):
       N (int) - dimension of input/output space
       K (int) - maximum degree of polynomial
       basis (object) - has eval, grad, hess functions of x, order (default Hermite)
+      reference_measure (func) - draw samples  (default np.random.randn)
       perm_matrix (N ndarray) - permutation matrix (default identity)
 
     Attributes:
@@ -29,17 +30,24 @@ class TransportMap(object):
       map - func of n, returns T_n (double)
       jacobian - func of n, returns dT_n/dx_n (double)
       grad_map - func of n, returns grad_gamma T_n (P_n ndarray)
-      grad_jacobian - function of n, returns grad_gamma dT_n/dx_n (P_n ndarray)
-      update_gamma - function of n, delta (P_n ndarray)
+      grad_jacobian - func of n, returns grad_gamma dT_n/dx_n (P_n ndarray)
+      update_gamma - func of n, delta_gamma (P_n ndarray)
+      set_gamma - func of n, new_gamma (P_n ndarray)
+      random_gamma - randomly initialize gammas
+      sample - func number_samples, returns samples from transport density
 
     """
-    def __init__(self, N, K, basis=None, perm_matrix=None):
+    def __init__(self, N, K, basis=None, reference_measure=None,
+            perm_matrix=None):
         if basis is None:
             basis = Hermite()
+        if reference_measure is None:
+            reference_measure = np.random.randn
 
         self.N = N
         self.K = K
         self.basis = basis
+        self.reference_measure = reference_measure
 
         self.H_z = np.zeros((self.N, self.K+1))
         self.dH_z = np.zeros((self.N, self.K+1))
@@ -47,6 +55,10 @@ class TransportMap(object):
         self.gammas = [np.zeros(len(J_n)) for J_n in self.J_s]
 
     def fit_sample(self, z):
+        """ Precompute basis values for sample z
+        Args:
+          z (N ndarray) - sample from reference measure
+        """
         for n in xrange(0, self.N):
             for order in xrange(0, self.K+1):
                 self.H_z[n, order] = self.basis.fun(z[n], order)
@@ -61,7 +73,13 @@ class TransportMap(object):
         return
 
     def mapping(self, n=None, z=None):
-        """ Return the n-th element of T for the fitted sample """
+        """ Return the n-th element of T for the fitted sample
+        Args:
+          n (int) - dimension of map (if None will return all dimensions)
+          z (N ndarray) - sample (default: use sample from fit_sample)
+        Returns:
+          T_n (double) - mapping value at dimension n (or an N ndarray of all values)
+        """
         if z is not None:
             self.fit_sample(z)
         if n is None:
@@ -75,7 +93,13 @@ class TransportMap(object):
         return T_n
 
     def jacobian(self, n=None, z=None):
-        """ Return the n-th element of dT/dx_n for the fitted sample """
+        """ Return the n-th element of dT/dx_n for the fitted sample
+        Args:
+          n (int) - dimension of map (if None will return all dimensions)
+          z (N ndarray) - sample (default: use sample from fit_sample)
+        Returns:
+          dT_n (double) - derivative at dimension n (or an N ndarray of all values)
+        """
         if z is not None:
             self.fit_sample(z)
         if n is None:
@@ -90,7 +114,13 @@ class TransportMap(object):
         return dT_n
 
     def grad_mapping(self, n, z=None):
-        """ Return the gradient of n-th element of T for the fitted sample """
+        """ Return the gradient of n-th element of T for the fitted sample
+        Args:
+          n (int) - dimension of map
+          z (N ndarray) - sample (default: use sample from fit_sample)
+        Returns:
+          grad_T_n (P_n ndarray) - gradient of mapping value at dimension n
+        """
         if z is not None:
             self.fit_sample(z)
         grad_T_n = np.zeros(len(self.gammas[n]))
@@ -103,7 +133,13 @@ class TransportMap(object):
 
 
     def grad_jacobian(self, n, z=None):
-        """ Return the gradient of n-th element of T for the fitted sample """
+        """ Return the gradient of n-th element of dT/dx_n for the fitted sample
+        Args:
+          n (int) - dimension of map
+          z (N ndarray) - sample (default: use sample from fit_sample)
+        Returns:
+          grad_dT_n (P_n ndarray) - gradient of derivative value at dimension n
+        """
         if z is not None:
             self.fit_sample(z)
         grad_dT_n = np.zeros(len(self.gammas[n]))
@@ -123,6 +159,15 @@ class TransportMap(object):
         self.gammas[n] += delta_gamma
         return
 
+    def set_gamma(self, n, new_gamma):
+        """ Set gamma_n to new_gamma """
+        self._check_n(n)
+        if np.size(new_gamma) !=  np.size(self.gammas[n]):
+            raise ValueError("new_gamma is wrong size")
+        self.gammas[n] = new_gamma
+        return
+
+
     def random_gammas(self):
         """ Randomly initialize gammas """
         for n in xrange(0, self.N):
@@ -133,7 +178,7 @@ class TransportMap(object):
         """ Return samples from the transport density """
         samples = np.zeros((number_samples, self.N))
         for i in xrange(0, number_samples):
-            z = np.random.randn(self.N)
+            z = self.reference_measure(self.N)
             samples[i,:] = self.mapping(z=z)
 
         return samples
