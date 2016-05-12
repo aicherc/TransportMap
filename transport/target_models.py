@@ -6,6 +6,7 @@ Target Density Functions
 
 # Import Modules
 import numpy as np
+from scipy.special import expit
 
 # Code Implementation
 class LogisticRegression(object):
@@ -17,7 +18,7 @@ class LogisticRegression(object):
       A (D by N ndarray) - covariates
       b (D ndarray) - binary observations in {-1, +1}
       mu_theta (N ndarray) - prior mean for theta (default 0)
-      sigma2_theta (N ndarray) - prior (diagonal) variance for theta (default 1)
+      sigma2_theta (N ndarray) - prior (diag) variance for theta (default 10)
 
     Methods:
       log_joint_prob - func of theta (N ndarray) returns log_prob (double)
@@ -25,18 +26,57 @@ class LogisticRegression(object):
       posterior_sample - func of number_samples (int) returns samples
     """
     def __init__(self, A, b, mu_theta=None, sigma2_theta=None):
-        raise NotImplementedError()
+        D, N = np.shape(A)
+        if mu_theta is None:
+            mu_theta = np.zeros(N)
+        if sigma2_theta is None:
+            sigma2_theta = np.ones(N)*10.0
+
+        self.N = N
+        self.D = D
+        self.A = A
+        self.b = b
+        self.mu_theta = mu_theta
+        self.sigma2_theta = sigma2_theta
+        return
 
     def log_joint_prob(self, theta):
-        raise NotImplementedError()
+        """ Return the log joint probability of the parameter
+        Args:
+          theta (N ndarray) - coefficient parameter
+        Returns:
+          log_joint_prob (double) - log prior + log likelihood
+        """
+        prior_resid = theta-self.mu_theta
+        log_joint_prob = -0.5 * (prior_resid/self.sigma2_theta).dot(prior_resid)
+        for d in xrange(0, self.D):
+            obs_resid = self.A[d,:].dot(theta) * self.b[d]
+            log_joint_prob += np.log(expit(obs_resid))
+        return log_joint_prob
 
     def grad_log_joint_prob(self, theta):
-        raise NotImplementedError()
+        """ Return the log joint probability of the parameter
+        Args:
+          theta (N ndarray) - coefficient parameter
+        Returns:
+          grad_log_joint_prob (N ndarray) - log prior + log likelihood
+        """
+        prior_resid = theta-self.mu_theta
+        grad_log_joint_prob = - prior_resid / self.sigma2_theta
+        for d in xrange(0, self.D):
+            obs_resid = self.A[d,:].dot(theta) * self.b[d]
+            grad_log_joint_prob += expit(-obs_resid) * self.b[d] * self.A[d,:].T
+        return grad_log_joint_prob
 
     def posterior_sample(self, number_samples):
-        """ Approximately sample from the posterior using MCMC + Stan """
-
-        raise NotImplementedError()
+        """ Approximately sample from the posterior using MCMC + Stan
+        Args:
+          number_samples (int)
+        Returns:
+          samples (number_samples by N ndarray) - posterior samples
+        """
+        samples = logistic_regression_mcmc(self, number_samples)
+        return samples
 
 
 class LinearRegression(object):
@@ -45,28 +85,79 @@ class LinearRegression(object):
     Args:
       A (D by N ndarray) - covariates
       b (D ndarray) - observations
+      sigma2_obs (double) - variance of observations (default 1.0)
       mu_theta (N ndarray) - prior mean for theta (default 0)
-      sigma2_theta (N ndarray) - prior (diagonal) variance for theta (default 1)
+      sigma2_theta (N ndarray) - prior (diag) variance for theta (default 10)
 
     Methods:
       log_joint_prob - func of theta (N ndarray) returns log_prob (double)
       grad_log_joint_prob - func of theta (N ndarray) returns grad (N ndarray)
       posterior_sample - func of number_samples (int) returns samples
     """
-    def __init__(self, A, b, mu_theta=None, sigma2_theta=None):
-        raise NotImplementedError()
+    def __init__(self, A, b, sigma2_obs=1.0, mu_theta=None, sigma2_theta=None):
+        D, N = np.shape(A)
+        if mu_theta is None:
+            mu_theta = np.zeros(N)
+        if sigma2_theta is None:
+            sigma2_theta = np.ones(N)*10.0
+
+        self.N = N
+        self.D = D
+        self.A = A
+        self.b = b
+        self.sigma2_obs = sigma2_obs
+        self.mu_theta = mu_theta
+        self.sigma2_theta = sigma2_theta
+        return
 
     def log_joint_prob(self, theta):
-        raise NotImplementedError()
+        """ Return the log joint probability of the parameter
+        Args:
+          theta (N ndarray) - coefficient parameter
+        Returns:
+          log_joint_prob (double) - log prior + log likelihood
+        """
+        prior_resid = theta-self.mu_theta
+        log_joint_prob = -0.5 * (prior_resid/self.sigma2_theta).dot(prior_resid)
+        for d in xrange(0, self.D):
+            obs_resid = self.A[d,:].dot(theta) - self.b[d]
+            log_joint_prob += -0.5 * obs_resid ** 2 / self.sigma2_obs
+        return log_joint_prob
 
     def grad_log_joint_prob(self, theta):
-        raise NotImplementedError()
+        """ Return the log joint probability of the parameter
+        Args:
+          theta (N ndarray) - coefficient parameter
+        Returns:
+          grad_log_joint_prob (N ndarray) - log prior + log likelihood
+        """
+        prior_resid = theta-self.mu_theta
+        grad_log_joint_prob = - prior_resid / self.sigma2_theta
+        for d in xrange(0, self.D):
+            obs_resid = self.A[d,:].dot(theta) - self.b[d]
+            grad_log_joint_prob += - obs_resid / self.sigma2_obs * self.A[d,:].T
+        return grad_log_joint_prob
 
     def posterior_sample(self, number_samples):
-        raise NotImplementedError()
+        """ Sample from the posterior
+        Args:
+          number_samples (int)
+        Returns:
+          samples (number_samples by N ndarray) - posterior samples of theta
+        """
+        posterior_Sigma = np.linalg.inv(
+                np.diag(self.sigma2_theta**-1) + self.A.T.dot(self.A))
+        posterior_mu = posterior_Sigma.dot(
+                self.mu_theta/self.sigma2_theta +self.A.T.dot(self.b))
+
+        samples = np.array([
+            np.random.multivariate_normal(posterior_mu, posterior_Sigma)
+            for _ in xrange(0, number_samples)])
+
+        return samples
+
 
 def logistic_regression_mcmc(model, number_samples):
-
     D, N = np.shape(model.A)
     y = (model.b+1)/2 # Convert to {0,1}
 
@@ -104,7 +195,37 @@ def logistic_regression_mcmc(model, number_samples):
     samples = theta[1000:,:]
     return samples
 
+def generate_linear_regression(theta_true, obs_variance=1.0, D=100):
+    """ Generate Data for linear regression model
+    Args:
+      theta_true (N ndarray) - true coefficient vector
+      obs_variance (double) - observation noise level (default 1.0)
+      D (int) - number of observations (default 100)
+    Returns:
+      A (D by N ndarray) - covariates/features
+      b (D ndarray) - response/targets
+    """
+    A = np.random.randn(D, np.size(theta_true))*2.0
+    A[:,0] = np.ones(D)
+    b = A.dot(theta_true) + np.random.randn(D)*np.sqrt(obs_variance)
+    return A, b
 
+def generate_logistic_regression(theta_true, obs_variance=0.0, D=100):
+    """ Generate Data for logistic regression model
+    Args:
+      theta_true (N ndarray) - true coefficient vector
+      obs_variance (double) - observation noise level (default 0.0)
+      D (int) - number of observations (default 100)
+    Returns:
+      A (D by N ndarray) - covariates/features
+      b (D ndarray) - response/targets
+    """
+    A = np.random.randn(D, np.size(theta_true))*2.0
+    A[:,0] = np.ones(D)
+    eta = A.dot(theta_true) + np.random.randn(D)*np.sqrt(obs_variance)
+    p = expit(eta)
+    b = (np.random.rand(D) < p) * 2.0 - 1.0 # Map to +/-1
+    return A, b
 
 
 
