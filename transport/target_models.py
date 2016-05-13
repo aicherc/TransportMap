@@ -6,6 +6,7 @@ Target Density Functions
 
 # Import Modules
 import numpy as np
+import pystan
 from scipy.special import expit
 
 # Code Implementation
@@ -49,9 +50,8 @@ class LogisticRegression(object):
         """
         prior_resid = theta-self.mu_theta
         log_joint_prob = -0.5 * (prior_resid/self.sigma2_theta).dot(prior_resid)
-        for d in xrange(0, self.D):
-            obs_resid = self.A[d,:].dot(theta) * self.b[d]
-            log_joint_prob += np.log(expit(obs_resid))
+        obs_resid = self.A.dot(theta) * self.b
+        log_joint_prob += np.sum(np.log(expit(obs_resid)))
         return log_joint_prob
 
     def grad_log_joint_prob(self, theta):
@@ -63,9 +63,8 @@ class LogisticRegression(object):
         """
         prior_resid = theta-self.mu_theta
         grad_log_joint_prob = - prior_resid / self.sigma2_theta
-        for d in xrange(0, self.D):
-            obs_resid = self.A[d,:].dot(theta) * self.b[d]
-            grad_log_joint_prob += expit(-obs_resid) * self.b[d] * self.A[d,:].T
+        obs_resid = self.A.dot(theta) * self.b
+        grad_log_joint_prob += (expit(-obs_resid) * self.b).dot(self.A)
         return grad_log_joint_prob
 
     def posterior_sample(self, number_samples):
@@ -182,7 +181,7 @@ def logistic_regression_mcmc(model, number_samples):
             "N": N,
             "D": D,
             "x": model.A,
-            "y": y,
+            "y": y.astype(int),
             "mu": model.mu_theta,
             "Sigma": np.diag(model.sigma2_theta),
             }
