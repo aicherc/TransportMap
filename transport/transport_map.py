@@ -107,9 +107,8 @@ class TransportMap(object):
         dT_n = 0.0
         for i, index in enumerate(self.J_s[n]):
             prod = self.dH_z[n, index[n]] * self.gammas[n][i]
-            if np.abs(prod) > 0:
-                for j in xrange(0, n):
-                    prod *= self.H_z[j, index[j]]
+            for j in xrange(0, n):
+                prod *= self.H_z[j, index[j]]
             dT_n += prod
         return dT_n
 
@@ -145,9 +144,8 @@ class TransportMap(object):
         grad_dT_n = np.zeros(len(self.gammas[n]))
         for i, index in enumerate(self.J_s[n]):
             prod = self.dH_z[n, index[n]]
-            if np.abs(prod) > 0:
-                for j in xrange(0, n):
-                    prod *= self.H_z[j, index[j]]
+            for j in xrange(0, n):
+                prod *= self.H_z[j, index[j]]
             grad_dT_n[i] += prod
         return grad_dT_n
 

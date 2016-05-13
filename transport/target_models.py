@@ -119,9 +119,8 @@ class LinearRegression(object):
         """
         prior_resid = theta-self.mu_theta
         log_joint_prob = -0.5 * (prior_resid/self.sigma2_theta).dot(prior_resid)
-        for d in xrange(0, self.D):
-            obs_resid = self.A[d,:].dot(theta) - self.b[d]
-            log_joint_prob += -0.5 * obs_resid ** 2 / self.sigma2_obs
+        obs_resid = self.A.dot(theta) - self.b
+        log_joint_prob += -0.5 * obs_resid.T.dot(obs_resid) / self.sigma2_obs
         return log_joint_prob
 
     def grad_log_joint_prob(self, theta):
@@ -133,9 +132,8 @@ class LinearRegression(object):
         """
         prior_resid = theta-self.mu_theta
         grad_log_joint_prob = - prior_resid / self.sigma2_theta
-        for d in xrange(0, self.D):
-            obs_resid = self.A[d,:].dot(theta) - self.b[d]
-            grad_log_joint_prob += - obs_resid / self.sigma2_obs * self.A[d,:].T
+        obs_resid = self.A.dot(theta) - self.b
+        grad_log_joint_prob += - obs_resid.dot(self.A) / self.sigma2_obs
         return grad_log_joint_prob
 
     def posterior_sample(self, number_samples):
