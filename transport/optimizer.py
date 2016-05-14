@@ -82,6 +82,10 @@ class TransportMapOptimizer(object):
         noisy_objective = noisy_objective_sum / batch_size
         noisy_gradient = np.hstack(noisy_gradient_sums) / batch_size
 
+        # Lambduh L2 Regularization
+        noisy_objective += 0.5*self.lambduh * gamma.dot(gamma)
+        noisy_gradient += self.lambduh * gamma
+
         return noisy_objective, noisy_gradient
 
     def set_gamma(self, gamma):

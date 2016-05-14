@@ -84,6 +84,9 @@ def sgd(f, x_0, options):
 
     # Main Loop
     for t in xrange(0, options.T):
+        if ((t+1) % 1000) == 0:
+            print "Iteration %u of %u" % (t, options.T)
+
         # Calculate Gradient
         fx, gx = f.oracle(x, options.batch_size)
 
@@ -107,7 +110,7 @@ def sgd(f, x_0, options):
 
     # Calculate final solution
     T_frac = int(options.alpha * options.T)
-    x_star = np.mean(x_s[T_frac:,], axis=0)
+    x_star = np.mean(x_s[-T_frac:,], axis=0)
     return x_star, x_s, f_s
 
 

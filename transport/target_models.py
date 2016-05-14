@@ -185,11 +185,12 @@ def logistic_regression_mcmc(model, number_samples):
             "mu": model.mu_theta,
             "Sigma": np.diag(model.sigma2_theta),
             }
+    frac_samples = np.ceil(number_samples/4.0)
     fit = pystan.stan(model_code=logistic_code, data=logistic_data,
-            iter=1000+number_samples, chains=4)
+            iter=1000+frac_samples, chains=4)
 
     theta = fit.extract("theta")["theta"]
-    samples = theta[1000:,:]
+    samples = theta[0:number_samples,:]
     return samples
 
 def generate_linear_regression(theta_true, obs_variance=1.0, D=100):
