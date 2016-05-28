@@ -10,25 +10,40 @@ import pystan
 from scipy.special import expit
 
 # Code Implementation
-class CustomDensity(object):
-    """ Custom Density Object
+class GumbelDensity(object):
+    """ Gumbel Density Object
+
+    Density is proportional to exp(-(x-mu)/beta - exp(-(x-mu)/beta))
 
     Args:
-      potential (func) - function of theta
-      grad_potential (func) - gradient function of theta
-      N (int) - dimension of theta
-      scaling (double) - scaling constant (default 1.0)
+      mu (N ndarray) - mean
+      beta (N ndarray) - scale (default eye(N))
+      Ainv (N by N ndarray) - multivariate rotation/scaling (default eye(N))
+        (So Ainv * theta is N independent densities)
+
     Methods:
       log_joint_prob - func of theta (N ndarray) returns log_prob (double)
       grad_log_joint_prob - func of theta (N ndarray) returns grad (N ndarray)
       posterior_sample - func of number_samples (int) returns samples
     """
-    def __init__(self, potential, grad_potential, N, scaling=1.0):
-        self.potential = potential
-        self.grad_potential = grad_potential
-        self.N = N
-        self.scaling = scaling
-        self.M = self._get_bound_const()
+    def __init__(self, mu, beta=None, Ainv=None):
+        self.N = np.size(mu)
+        self.mu = mu
+
+        if beta is None:
+            beta = np.ones(self.N)
+        self.beta = beta
+        if Ainv is None:
+            Ainv = np.eye(self.N)
+        self.Ainv = Ainv
+        return
+
+    def _check_inputs(self):
+        if np.size(self.beta) != self.N:
+            raise ValueError("beta must be an N ndarray")
+        if (np.shape(self.Ainv)[0] != self.N) or (
+                np.shape(self.Ainv)[1] != self.N):
+            raise ValueError("Ainv must be an N by N ndarray")
         return
 
     def log_joint_prob(self, theta):
@@ -38,7 +53,8 @@ class CustomDensity(object):
         Returns:
           log_joint_prob (double) - log prior + log likelihood
         """
-        log_joint_prob = -self.scaling * self.potential(theta)
+        resid = (self.Ainv.dot(theta)-self.mu)/self.beta
+        log_joint_prob = -1.0*np.sum(resid + np.exp(-1.0*resid))
         return log_joint_prob
 
     def grad_log_joint_prob(self, theta):
@@ -48,20 +64,22 @@ class CustomDensity(object):
         Returns:
           grad_log_joint_prob (N ndarray) - log prior + log likelihood
         """
-        grad_log_joint_prob = -self.scaling * self.grad_potential(theta)
+        resid = (self.Ainv.dot(theta)-self.mu)/self.beta
+        grad_resid = -1.0 * self.Ainv.T.dot(self.beta ** -1)
+        grad_log_joint_prob = grad_resid - grad_resid * np.exp(-1.0*resid)
         return grad_log_joint_prob
 
     def posterior_sample(self, number_samples):
-        """ Approximately sample from the posterior using Accept Reject
+        """ Approximately sample from the posterior using MCMC + Stan
         Args:
           number_samples (int)
         Returns:
           samples (number_samples by N ndarray) - posterior samples
         """
-        raise NotImplementedError()
-
-
-
+        Z = [np.random.gumbel(loc=self.mu, scale=self.beta, size=self.N)
+            for _ in xrange(number_samples)]
+        samples = np.array([ np.linalg.solve(self.Ainv,z) for z in Z])
+        return samples
 
 class LaplaceDensity(object):
     """ Laplace Density Object

@@ -15,7 +15,7 @@ import seaborn as sns
 # Kernel Density Plot (given samples + coordinate)
 def kde_plot(samples, index1, index2=None, **kwargs):
     if index2 is None:
-        sns.kdeplot(samples[:,index1], **kwargs)
+        sns.distplot(samples[:,index1], **kwargs)
     else:
         sns.jointplot(samples[:,index1], samples[:,index2], **kwargs)
     return

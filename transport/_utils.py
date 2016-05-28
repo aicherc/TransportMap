@@ -53,13 +53,14 @@ def test_stepsize_updates(transport_optimizer, stepsize_updates,
     return gamma_star, gamma_s, f_s, eta_s, samples
 
 def test_transport_maps(target_model, transport_maps, sgd_options=None,
-        number_samples=1000):
+        number_samples=1000, lambduh = 0.0):
     """ Test different transport_maps
     Args:
       target_model (Model) - target density object
       transport_maps (list of TransportMap) - transport map objects
       sgd_options (sgd.Options) - options for learn_map()
       number_samples (int) - default 1000
+      lambduh (double) - regularization on gamma (default = 0)
 
     Returns:
       gamma_star (list of N ndarrays)
@@ -80,7 +81,8 @@ def test_transport_maps(target_model, transport_maps, sgd_options=None,
     for ii, transport_map in enumerate(transport_maps):
         transport_optimizer = TransportMapOptimizer(
                 target_model = target_model,
-                transport_map = transport_map)
+                transport_map = transport_map,
+                lambduh = lambduh)
         transport_optimizer.random_gamma()
         sgd_options.G = 0.0
 
