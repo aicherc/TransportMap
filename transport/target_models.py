@@ -10,6 +10,115 @@ import pystan
 from scipy.special import expit
 
 # Code Implementation
+class CustomDensity(object):
+    """ Custom Density Object
+
+    Args:
+      potential (func) - function of theta
+      grad_potential (func) - gradient function of theta
+      N (int) - dimension of theta
+      scaling (double) - scaling constant (default 1.0)
+    Methods:
+      log_joint_prob - func of theta (N ndarray) returns log_prob (double)
+      grad_log_joint_prob - func of theta (N ndarray) returns grad (N ndarray)
+      posterior_sample - func of number_samples (int) returns samples
+    """
+    def __init__(self, potential, grad_potential, N, scaling=1.0):
+        self.potential = potential
+        self.grad_potential = grad_potential
+        self.N = N
+        self.scaling = scaling
+        self.M = self._get_bound_const()
+        return
+
+    def log_joint_prob(self, theta):
+        """ Return the log joint probability of the parameter
+        Args:
+          theta (N ndarray) - coefficient parameter
+        Returns:
+          log_joint_prob (double) - log prior + log likelihood
+        """
+        log_joint_prob = -self.scaling * self.potential(theta)
+        return log_joint_prob
+
+    def grad_log_joint_prob(self, theta):
+        """ Return the log joint probability of the parameter
+        Args:
+          theta (N ndarray) - coefficient parameter
+        Returns:
+          grad_log_joint_prob (N ndarray) - log prior + log likelihood
+        """
+        grad_log_joint_prob = -self.scaling * self.grad_potential(theta)
+        return grad_log_joint_prob
+
+    def posterior_sample(self, number_samples):
+        """ Approximately sample from the posterior using Accept Reject
+        Args:
+          number_samples (int)
+        Returns:
+          samples (number_samples by N ndarray) - posterior samples
+        """
+        raise NotImplementedError()
+
+
+
+
+class LaplaceDensity(object):
+    """ Laplace Density Object
+
+    Density is proportional to exp(-|A(x-b)|_1)
+    If `Z` is N iid laplace(1) rvs, then `X = Ainv * Z  + B`
+
+    Args:
+      A (N by N ndarray) - Scaling weights (default 1.0)
+      b (N ndarray) - mean (default 0.0)
+
+    Methods:
+      log_joint_prob - func of theta (N ndarray) returns log_prob (double)
+      grad_log_joint_prob - func of theta (N ndarray) returns grad (N ndarray)
+      posterior_sample - func of number_samples (int) returns samples
+    """
+    def __init__(self, A=np.ones((1,1)), b = np.zeros((1))):
+        self.N = np.size(b)
+        self.A = A
+        self.b = b
+        if (np.shape(A)[0] != self.N) or (np.shape(A)[1] != self.N):
+            raise TypeError("A must be an N by N matrix")
+        return
+
+    def log_joint_prob(self, theta):
+        """ Return the log joint probability of the parameter
+        Args:
+          theta (N ndarray) - coefficient parameter
+        Returns:
+          log_joint_prob (double) - log prior + log likelihood
+        """
+        log_joint_prob = -1.0*np.linalg.norm(self.A.dot(theta-self.b), ord=1)
+        return log_joint_prob
+
+    def grad_log_joint_prob(self, theta):
+        """ Return the log joint probability of the parameter
+        Args:
+          theta (N ndarray) - coefficient parameter
+        Returns:
+          grad_log_joint_prob (N ndarray) - log prior + log likelihood
+        """
+        grad_log_joint_prob = -1*self.A.T.dot(np.sign(self.A.dot(theta-self.b)))
+        return grad_log_joint_prob
+
+    def posterior_sample(self, number_samples):
+        """ Approximately sample from the posterior using MCMC + Stan
+        Args:
+          number_samples (int)
+        Returns:
+          samples (number_samples by N ndarray) - posterior samples
+        """
+        Z = [np.random.laplace(size=self.N)
+            for _ in xrange(number_samples)]
+        samples = np.array([ np.linalg.solve(self.A,z) + self.b for z in Z])
+        return samples
+
+
 class LogisticRegression(object):
     """ Logistic Regression Target Density Object
 
